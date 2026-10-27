@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stock Control</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1a1d23;--mu:#6b7280;--bd:#dde1e7;--in:#1f7a4d;--inbg:#e3f4eb;--out:#b4401f;--outbg:#fbe9e2;--ac:#2456d6;--warn:#b7791f;--warnbg:#fdf3dc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--card:#1d2026;--tx:#eceef2;--mu:#9aa1ad;--bd:#2f343d;--in:#58c58d;--inbg:#173626;--out:#f0875f;--outbg:#3d2218;--ac:#7ba2ff;--warn:#e8b64f;--warnbg:#3a2f14;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14161a;--card:#1d2026;--tx:#eceef2;--mu:#9aa1ad;--bd:#2f343d;--in:#58c58d;--inbg:#173626;--out:#f0875f;--outbg:#3d2218;--ac:#7ba2ff;--warn:#e8b64f;--warnbg:#3a2f14;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 "Segoe UI",system-ui,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0}h2{font-size:17px;margin:0 0 10px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font:inherit;cursor:pointer}
+.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+.auth{max-width:380px;margin:8vh auto 0}
+.auth input{margin-bottom:10px}
+.modes{display:flex;gap:8px;margin-bottom:14px}
+.modes button{flex:1;padding:16px;font:600 18px "Segoe UI",system-ui,sans-serif;border-radius:10px;border:2px solid var(--bd);background:var(--card);color:var(--mu);cursor:pointer}
+.modes button.in.on{border-color:var(--in);background:var(--inbg);color:var(--in)}
+.modes button.out.on{border-color:var(--out);background:var(--outbg);color:var(--out)}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+label{display:block;font-size:13px;color:var(--mu);margin-bottom:4px}
+input,select{font:inherit;padding:12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);width:100%}
+input:focus,select:focus{outline:2px solid var(--ac)}
+.grow{flex:1;min-width:150px}.qty{width:90px}
+#bc{font-size:22px}
+button.pri{padding:12px 18px;border:0;border-radius:8px;background:var(--ac);color:#fff;font:inherit;cursor:pointer}
+button.sec{padding:8px 14px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit;cursor:pointer}
+button.lnk{background:none;border:0;color:var(--out);cursor:pointer;font:inherit}
+button.lnk.b{color:var(--ac)}
+.msg{margin-top:12px;padding:12px;border-radius:8px;min-height:46px;background:var(--bg);color:var(--mu)}
+.msg.ok{background:var(--inbg);color:var(--in)}.msg.bad{background:var(--outbg);color:var(--out)}
+.hide{display:none!important}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{font-size:13px;color:var(--mu);font-weight:600}
+.low{background:var(--warnbg);color:var(--warn);padding:2px 8px;border-radius:99px;font-size:12px}
+.tag{padding:2px 8px;border-radius:99px;font-size:12px;background:var(--bg);border:1px solid var(--bd)}
+.tin{color:var(--in)}.tout{color:var(--out)}
+textarea{width:100%;height:140px;font:13px monospace;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px}
+.sub{color:var(--mu);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div id="auth" class="card auth hide">
+ <h2 id="at">Sign in</h2>
+ <p class="sub" id="as"></p>
+ <label for="lu">Username</label><input id="lu" autocomplete="username">
+ <label for="lp">Password</label><input id="lp" type="password" autocomplete="current-password">
+ <div id="cf" class="hide"><label for="lc">Confirm password</label><input id="lc" type="password"></div>
+ <button class="pri" id="lb" style="width:100%">Sign in</button>
+ <div class="msg bad hide" id="ae"></div>
+</div>
+
+<div id="app" class="hide">
+<div class="top">
+ <h1>Stock Control</h1>
+ <div><span id="who" class="sub"></span> <button class="sec" id="cpt">Change password</button> <button class="sec" id="lo">Log out</button></div>
+</div>
+<div id="cp" class="card hide">
+ <h2>Change my password</h2>
+ <div class="row">
+  <div class="grow"><label for="cpo">Current password</label><input id="cpo" type="password" autocomplete="current-password"></div>
+  <div class="grow"><label for="cpn">New password (min 6)</label><input id="cpn" type="password" autocomplete="new-password"></div>
+  <div class="grow"><label for="cpc">Confirm new password</label><input id="cpc" type="password" autocomplete="new-password"></div>
+  <button class="pri" id="cpb">Save</button>
+ </div>
+ <div class="msg hide" id="cpm"></div>
+</div>
+<div class="tabs">
+ <button data-t="scan" class="on">Scan</button>
+ <button data-t="stock">Stock</button>
+ <button data-t="users" class="adm">Users</button>
+ <button data-t="act" class="adm">Activity</button>
+ <button data-t="rep" class="adm">Reports</button>
+</div>
+
+<section id="scan">
+ <div class="modes">
+  <button class="in on" id="mIn">▲ Book IN (F1)</button>
+  <button class="out" id="mOut">▼ Book OUT (F2)</button>
+ </div>
+ <div class="card">
+  <div class="row">
+   <div class="grow"><label for="bc">Scan barcode (cursor stays here)</label><input id="bc" autocomplete="off"></div>
+   <div><label for="q">Qty</label><input id="q" class="qty" type="number" min="1" value="1"></div>
+  </div>
+  <div id="inX" class="row" style="margin-top:10px">
+   <div class="grow"><label for="lot">Batch / lot no. (optional)</label><input id="lot" autocomplete="off"></div>
+   <div><label for="exd">Expiry date (optional)</label><input id="exd" type="date"></div>
+  </div>
+  <div id="outX" class="hide" style="margin-top:10px">
+   <div class="row">
+    <div class="grow"><label for="pt">Patient reference (stays until changed)</label><input id="pt" autocomplete="off" maxlength="30"></div>
+    <div class="grow"><label for="rm">Procedure / room</label><select id="rm"><option>X-ray</option><option>CT</option><option>MRI</option><option>Ultrasound</option><option>Fluoroscopy</option><option>Mammography</option><option>Other</option></select></div>
+   </div>
+   <label style="margin-top:8px"><input type="checkbox" id="gen" style="width:auto"> General use (no patient)</label>
+   <p class="sub" style="margin:6px 0 0">Use the file or accession number, not the patient’s name.</p>
+  </div>
+  <div class="msg" id="msg">Ready. Scan an item.</div>
+  <div id="newp" class="hide" style="margin-top:12px">
+   <div class="row">
+    <div class="grow"><label for="nn">New product name</label><input id="nn"></div>
+    <div><label for="nm">Low-stock level</label><input id="nm" class="qty" type="number" min="0" value="5"></div>
+    <button class="pri" id="ns">Save &amp; book in</button>
+   </div>
+  </div>
+ </div>
+</section>
+
+<section id="stock" class="hide">
+ <div class="card">
+  <input id="srch" placeholder="Search by name or barcode">
+  <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Barcode</th><th>Product</th><th>On hand</th><th>Low at</th><th></th></tr></thead><tbody id="sb"></tbody></table></div>
+ </div>
+ <div class="card">
+  <button class="pri" id="exp">Show CSV backup</button>
+  <textarea id="csv" class="hide" readonly style="margin-top:10px"></textarea>
+  <p class="sub">Data is saved in this browser on this computer. Copy the CSV now and then as a backup.</p>
+ </div>
+</section>
+
+<section id="users" class="hide">
+ <div class="card">
+  <h2>Add user</h2>
+  <div class="row">
+   <div class="grow"><label for="nu">Username</label><input id="nu" autocomplete="off"></div>
+   <div class="grow"><label for="np">Password (min 6)</label><input id="np" type="password" autocomplete="new-password"></div>
+   <div><label for="nr">Role</label><select id="nr"><option value="staff">Staff</option><option value="admin">Admin</option></select></div>
+   <button class="pri" id="nb">Add user</button>
+  </div>
+  <div class="msg hide" id="um"></div>
+  <p class="sub">Staff can scan and view stock. Admins can also manage users, delete products and see the Activity log.</p>
+ </div>
+ <div class="card scroll"><table><thead><tr><th>Username</th><th>Role</th><th></th></tr></thead><tbody id="ub"></tbody></table></div>
+</section>
+
+<section id="rep" class="hide">
+ <div class="card">
+  <h2>Usage report (book-outs)</h2>
+  <div class="row">
+   <div><label for="rf">From</label><input id="rf" type="date"></div>
+   <div><label for="rt">To</label><input id="rt" type="date"></div>
+   <div class="grow"><label for="rp2">Patient ref contains</label><input id="rp2"></div>
+   <div class="grow"><label for="rr">Procedure</label><select id="rr"></select></div>
+   <div class="grow"><label for="rg">Group by</label><select id="rg"><option value="p">Patient</option><option value="n">Product</option><option value="r">Procedure</option><option value="u">User</option><option value="x">Detail list</option></select></div>
+   <button class="sec" id="rx">Export CSV</button>
+  </div>
+  <p class="sub">To see everything one patient received, type their reference and choose Detail list.</p>
+ </div>
+ <div class="card scroll"><table><thead id="rh"></thead><tbody id="rb"></tbody></table><textarea id="rcsv" class="hide" readonly style="margin-top:10px"></textarea></div>
+</section>
+
+<section id="act" class="hide">
+ <div class="card">
+  <div class="row">
+   <div class="grow"><label for="fu">User</label><select id="fu"></select></div>
+   <div class="grow"><label for="ft">Action</label><select id="ft"><option value="">All actions</option></select></div>
+   <div><button class="sec" id="ax">Export full log (CSV)</button></div>
+  </div>
+ </div>
+ <div class="card scroll"><table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody id="hb"></tbody></table>
+ <p class="sub">Showing the latest 300 matching entries. Export includes the full log.</p>
+ <textarea id="acsv" class="hide" readonly></textarea></div>
+</section>
+</div>
+</div>
+
+<script>
+var KEY="stockctl.v1",S={items:{},log:[],users:{}},mode="in",pending=null,cur=null,resetFor=null,fails=0,lockUntil=0;
+var $=function(i){return document.getElementById(i)};
+var LBL={IN:"Book in",OUT:"Book out",ADD_PRODUCT:"New product",DEL_PRODUCT:"Product deleted",LOGIN:"Login",LOGOUT:"Logout",LOGIN_FAIL:"Failed login",USER_ADD:"User added",USER_DEL:"User deleted",PW_RESET:"Password reset",PW_CHANGE:"Password changed",WRITE_OFF:"Expired written off"};
+function load(){try{var r=localStorage.getItem(KEY);if(r){var d=JSON.parse(r);S.items=d.items||{};S.log=d.log||[];S.users=d.users||{}}}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function beep(ok){try{var c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator();o.frequency.value=ok?880:220;o.connect(c.destination);o.start();o.stop(c.currentTime+(ok?0.1:0.3))}catch(e){}}
+function say(t,k){var m=$("msg");m.textContent=t;m.className="msg "+(k||"");beep(k==="ok")}
+function L(a,o){o=o||{};S.log.unshift({t:Date.now(),u:cur?cur.name:(o.u||"—"),type:a,bc:o.bc||"",name:o.name||"",qty:o.qty||"",d:o.d||"",p:o.p||"",r:o.r||"",lot:o.lot||""});S.log=S.log.slice(0,3000)}
+function isAdmin(){return cur&&cur.role==="admin"}
+
+/* ---------- passwords ---------- */
+function hex(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
+async function hashPw(pw,salt){
+ var enc=new TextEncoder(),k=await crypto.subtle.importKey("raw",enc.encode(pw),"PBKDF2",false,["deriveBits"]);
+ return hex(await crypto.subtle.deriveBits({name:"PBKDF2",salt:enc.encode(salt),iterations:100000,hash:"SHA-256"},k,256));
+}
+function newSalt(){return hex(crypto.getRandomValues(new Uint8Array(16)))}
+async function makeUser(name,pw,role){var s=newSalt();return{name:name,role:role,salt:s,hash:await hashPw(pw,s)}}
+function checkNew(name,pw){
+ if(!/^[A-Za-z0-9_.-]{3,30}$/.test(name))return"Username must be 3–30 letters, numbers, . _ or -";
+ if(pw.length<6)return"Password must be at least 6 characters.";
+ if(S.users[name.toLowerCase()])return"That username already exists.";
+ return"";
+}
+
+/* ---------- login / setup ---------- */
+function showAuth(){
+ var first=!Object.keys(S.users).length;
+ $("auth").classList.remove("hide");$("app").classList.add("hide");
+ $("at").textContent=first?"First-time setup":"Sign in";
+ $("as").textContent=first?"Create the first administrator account.":"";
+ $("cf").classList.toggle("hide",!first);
+ $("lb").textContent=first?"Create admin account":"Sign in";
+ $("lu").value="";$("lp").value="";$("lc").value="";$("ae").classList.add("hide");$("lu").focus();
+}
+function aerr(t){$("ae").textContent=t;$("ae").classList.remove("hide")}
+async function authGo(){
+ var name=$("lu").value.trim(),pw=$("lp").value,key=name.toLowerCase();
+ if(!Object.keys(S.users).length){
+  var e=checkNew(name,pw);if(!e&&pw!==$("lc").value)e="Passwords do not match.";
+  if(e){aerr(e);return}
+  S.users[key]=await makeUser(name,pw,"admin");
+  cur={id:key,name:name,role:"admin"};L("USER_ADD",{d:"First admin account created"});save();return enter();
+ }
+ if(Date.now()<lockUntil){aerr("Too many attempts. Wait "+Math.ceil((lockUntil-Date.now())/1000)+" seconds.");return}
+ var u=S.users[key];
+ if(!u||await hashPw(pw,u.salt)!==u.hash){
+  fails++;L("LOGIN_FAIL",{u:"—",d:"Username tried: "+name.slice(0,30)});save();
+  if(fails>=5){fails=0;lockUntil=Date.now()+30000}
+  aerr("Wrong username or password.");$("lp").value="";return;
+ }
+ fails=0;cur={id:key,name:u.name,role:u.role};L("LOGIN");save();enter();
+}
+function enter(){
+ $("auth").classList.add("hide");$("app").classList.remove("hide");
+ $("who").textContent=cur.name+" ("+cur.role+")";$("cp").classList.add("hide");$("cpm").classList.add("hide");
+ document.querySelectorAll(".adm").forEach(function(b){b.classList.toggle("hide",!isAdmin())});
+ setMode("in");tab("scan");
+}
+function logout(){L("LOGOUT");save();cur=null;resetFor=null;$("pt").value="";showAuth()}
+
+/* ---------- scanning ---------- */
+function focusBc(){$("bc").focus();$("bc").select()}
+function setMode(m){mode=m;$("inX").classList.toggle("hide",m!=="in");$("outX").classList.toggle("hide",m!=="out");$("mIn").classList.toggle("on",m==="in");$("mOut").classList.toggle("on",m==="out");cancelNew();focusBc()}
+function cancelNew(){pending=null;$("newp").classList.add("hide")}
+function today(){return new Date().toISOString().slice(0,10)}
+function expQ(it){return(it.b||[]).filter(function(b){return b.exp&&b.exp<today()}).reduce(function(a,x){return a+x.q},0)}
+function batchTxt(it){var b=(it.b||[]).slice().sort(function(a,c){return(a.exp||"9999").localeCompare(c.exp||"9999")});return b.length?'<div class="sub">'+b.map(function(x){return esc(x.lot||"no lot")+": "+x.q+(x.exp?" (exp "+x.exp+")":"")}).join(" · ")+"</div>":""}
+function expTag(it){var t=today(),s=new Date(Date.now()+30*864e5).toISOString().slice(0,10),e=0,w=0;(it.b||[]).forEach(function(b){if(!b.exp)return;if(b.exp<t)e+=b.q;else if(b.exp<=s)w+=b.q});return(e?' <span class="low" style="background:var(--outbg);color:var(--out)">'+e+" expired</span>":"")+(w?' <span class="low">'+w+" expiring ≤30d</span>":"")}
+function record(bc,type,n,x){
+ x=x||{};var it=S.items[bc];it.b=it.b||[];
+ if(type==="IN"){
+  it.qty+=n;var lot=x.lot||"",ex=x.exp||"",f=it.b.filter(function(b){return b.lot===lot&&b.exp===ex})[0];
+  if(f)f.q+=n;else if(lot||ex)it.b.push({lot:lot,exp:ex,q:n});
+  L("IN",{bc:bc,name:it.name,qty:n,lot:lot,d:ex?"Expiry "+ex:""});
+ }else{
+  it.qty-=n;var left=n,used=[];
+  it.b.filter(function(b){return !b.exp||b.exp>=today()}).sort(function(a,b){return(a.exp||"9999").localeCompare(b.exp||"9999")}).forEach(function(b){if(left<=0)return;var t=Math.min(b.q,left);b.q-=t;left-=t;if(t&&b.lot)used.push(b.lot+"×"+t)});
+  it.b=it.b.filter(function(b){return b.q>0});
+  L("OUT",{bc:bc,name:it.name,qty:n,lot:used.join(", "),p:x.p,r:x.r});
+ }
+ save();
+}
+function handleScan(){
+ var bc=$("bc").value.trim(),n=parseInt($("q").value,10)||1;
+ $("bc").value="";if(!bc||!cur)return;
+ if(n<1)n=1;
+ var it=S.items[bc];
+ if(mode==="in"){
+  if(!it){pending={bc:bc,n:n,lot:$("lot").value.trim(),exp:$("exd").value};$("newp").classList.remove("hide");say("New barcode "+bc+". Enter a name for this product.","bad");$("nn").value="";$("nn").focus();return}
+  record(bc,"IN",n,{lot:$("lot").value.trim(),exp:$("exd").value});say("IN: "+it.name+" +"+n+" → "+it.qty+" on hand"+($("lot").value.trim()?" (lot "+$("lot").value.trim()+")":""),"ok");
+ }else{
+  if(!it){say("Unknown barcode "+bc+". Not in stock list.","bad");focusBc();return}
+  var pt=$("pt").value.trim(),gen=$("gen").checked;
+  if(!pt&&!gen){say("Enter the patient reference first (or tick General use).","bad");$("pt").focus();return}
+  var ex=expQ(it),ok=it.qty-ex;
+  if(ok<n){say("Cannot book out "+n+" of "+it.name+". "+Math.max(ok,0)+" usable"+(ex?" ("+ex+" expired, ask an admin to write off)":"")+".","bad");focusBc();return}
+  record(bc,"OUT",n,{p:(gen&&!pt)?"GENERAL":pt,r:$("rm").value});
+  say("OUT: "+it.name+" −"+n+" for "+((gen&&!pt)?"general use":"patient "+pt)+" → "+it.qty+" left"+(it.qty<=it.min?" (LOW STOCK)":""),"ok");
+ }
+ $("q").value=1;focusBc();render();
+}
+function saveNew(){
+ var nm=$("nn").value.trim();if(!pending)return;
+ if(!nm){$("nn").focus();return}
+ S.items[pending.bc]={name:nm,qty:0,min:parseInt($("nm").value,10)||0};
+ L("ADD_PRODUCT",{bc:pending.bc,name:nm});
+ record(pending.bc,"IN",pending.n,{lot:pending.lot,exp:pending.exp});
+ say("Added "+nm+" and booked in "+pending.n,"ok");
+ cancelNew();$("q").value=1;focusBc();render();
+}
+
+/* ---------- users ---------- */
+function umsg(t,ok){var m=$("um");m.textContent=t;m.className="msg "+(ok?"ok":"bad")}
+async function addUser(){
+ if(!isAdmin())return;
+ var name=$("nu").value.trim(),pw=$("np").value,e=checkNew(name,pw);
+ if(e){umsg(e);return}
+ S.users[name.toLowerCase()]=await makeUser(name,pw,$("nr").value);
+ L("USER_ADD",{d:name+" ("+$("nr").value+")"});save();
+ $("nu").value="";$("np").value="";umsg("User "+name+" added.",true);render();
+}
+function admins(){return Object.keys(S.users).filter(function(k){return S.users[k].role==="admin"}).length}
+async function usersClick(e){
+ var a=e.target.dataset.a,k=e.target.dataset.k;if(!a||!isAdmin())return;
+ if(a==="rs"){resetFor=resetFor===k?null:k;return render()}
+ if(a==="rsave"){
+  var pw=$("rp").value;if(pw.length<6){umsg("Password must be at least 6 characters.");return}
+  var u=S.users[k],s=newSalt();u.salt=s;u.hash=await hashPw(pw,s);
+  L("PW_RESET",{d:"Password reset for "+u.name});save();resetFor=null;umsg("Password updated for "+u.name+".",true);return render();
+ }
+ if(a==="du"){
+  if(k===cur.id){umsg("You cannot delete your own account.");return}
+  if(S.users[k].role==="admin"&&admins()<2){umsg("Cannot delete the last admin.");return}
+  L("USER_DEL",{d:S.users[k].name});delete S.users[k];save();umsg("User deleted.",true);render();
+ }
+}
+
+/* ---------- views ---------- */
+function tab(t){
+ document.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x.dataset.t===t)});
+ ["scan","stock","users","act","rep"].forEach(function(s){$(s).classList.toggle("hide",s!==t)});
+ if(t==="scan")focusBc();else render();
+}
+function detail(l){
+ if(l.type==="IN"||l.type==="OUT"||l.type==="WRITE_OFF")return esc(l.name)+" ("+esc(l.bc)+") × "+l.qty+(l.p?" · patient "+esc(l.p):"")+(l.r?" · "+esc(l.r):"")+(l.lot?" · lot "+esc(l.lot):"")+(l.d?" · "+esc(l.d):"");
+ if(l.type==="ADD_PRODUCT"||l.type==="DEL_PRODUCT")return esc(l.name)+" ("+esc(l.bc)+")";
+ return esc(l.d||"");
+}
+function render(){
+ if(!cur)return;
+ var f=$("srch").value.toLowerCase(),h="";
+ Object.keys(S.items).sort(function(a,b){return S.items[a].name.localeCompare(S.items[b].name)}).forEach(function(bc){
+  var it=S.items[bc];if(f&&(it.name+bc).toLowerCase().indexOf(f)<0)return;
+  h+="<tr><td>"+esc(bc)+"</td><td>"+esc(it.name)+batchTxt(it)+"</td><td><b>"+it.qty+"</b> "+(it.qty<=it.min?'<span class="low">low</span>':"")+expTag(it)+"</td><td>"+it.min+"</td><td>"+(isAdmin()?(expQ(it)?'<button class="lnk b" data-wo="'+esc(bc)+'">Write off expired</button> ':"")+'<button class="lnk" data-del="'+esc(bc)+'">Delete</button>':"")+"</td></tr>";
+ });
+ $("sb").innerHTML=h||'<tr><td colspan="5" class="sub">No products yet. Book some in from the Scan tab.</td></tr>';
+ if(!isAdmin())return;
+ h="";
+ Object.keys(S.users).sort().forEach(function(k){
+  var u=S.users[k];
+  h+="<tr><td>"+esc(u.name)+(k===cur.id?" <span class='sub'>(you)</span>":"")+'</td><td><span class="tag">'+u.role+'</span></td><td><button class="lnk b" data-a="rs" data-k="'+esc(k)+'">Reset password</button> <button class="lnk" data-a="du" data-k="'+esc(k)+'">Delete</button></td></tr>';
+  if(resetFor===k)h+='<tr><td colspan="3"><div class="row"><div class="grow"><label for="rp">New password for '+esc(u.name)+'</label><input id="rp" type="password" autocomplete="new-password"></div><button class="pri" data-a="rsave" data-k="'+esc(k)+'">Save</button></div></td></tr>';
+ });
+ $("ub").innerHTML=h;
+ var fu=$("fu"),ft=$("ft"),cu=fu.value,ct=ft.value,us={},ts={};
+ S.log.forEach(function(l){us[l.u]=1;ts[l.type]=1});
+ fu.innerHTML='<option value="">All users</option>'+Object.keys(us).sort().map(function(x){return"<option>"+esc(x)+"</option>"}).join("");
+ ft.innerHTML='<option value="">All actions</option>'+Object.keys(ts).map(function(x){return'<option value="'+x+'">'+esc(LBL[x]||x)+"</option>"}).join("");
+ fu.value=cu;ft.value=ct;
+ h="";var n=0;
+ for(var i=0;i<S.log.length&&n<300;i++){
+  var l=S.log[i];if(fu.value&&l.u!==fu.value)continue;if(ft.value&&l.type!==ft.value)continue;n++;
+  h+="<tr><td>"+new Date(l.t).toLocaleString()+"</td><td>"+esc(l.u)+'</td><td class="'+(l.type==="IN"?"tin":l.type==="OUT"?"tout":"")+'">'+esc(LBL[l.type]||l.type)+"</td><td>"+detail(l)+"</td></tr>";
+ }
+ $("hb").innerHTML=h||'<tr><td colspan="4" class="sub">No activity matches.</td></tr>';
+ renderRep();
+}
+function csvOf(){
+ var q=function(s){return '"'+String(s).replace(/"/g,'""')+'"'};
+ var r=["barcode,product,on_hand,low_level"];
+ Object.keys(S.items).forEach(function(b){var i=S.items[b];r.push([q(b),q(i.name),i.qty,i.min].join(","))});
+ return r.join("\n");
+}
+
+function cmsg(t,ok){var m=$("cpm");m.textContent=t;m.className="msg "+(ok?"ok":"bad")}
+async function changePw(){
+ var o=$("cpo").value,n=$("cpn").value,c=$("cpc").value,u=S.users[cur.id];
+ if(await hashPw(o,u.salt)!==u.hash)return cmsg("Current password is wrong.");
+ if(n.length<6)return cmsg("New password must be at least 6 characters.");
+ if(n!==c)return cmsg("New passwords do not match.");
+ var s=newSalt();u.salt=s;u.hash=await hashPw(n,s);L("PW_CHANGE",{d:"Changed own password"});save();
+ $("cpo").value="";$("cpn").value="";$("cpc").value="";cmsg("Password changed.",true);
+}
+async function exportAct(){
+ if(!isAdmin())return;
+ var q=function(s){s=String(s);if(/^[=+\-@]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};
+ var r=["time,user,action,details,patient,procedure,lot"];
+ S.log.forEach(function(l){
+  var d=(l.type==="IN"||l.type==="OUT")?l.name+" ("+l.bc+") x "+l.qty:(l.type==="ADD_PRODUCT"||l.type==="DEL_PRODUCT")?l.name+" ("+l.bc+")":(l.d||"");
+  r.push([q(new Date(l.t).toLocaleString()),q(l.u),q(LBL[l.type]||l.type),q(d),q(l.p||""),q(l.r||""),q(l.lot||"")].join(","));
+ });
+ var data=r.join("\n"),dl=null;
+ try{dl=await claude.use("downloads")}catch(e){}
+ if(dl){try{await dl.save({filename:"activity-log.csv",data:data});return}catch(e){if(e&&e.code==="declined")return}}
+ var t=$("acsv");t.value=data;t.classList.remove("hide");t.select();
+}
+function repRows(){
+ var f=$("rf").value,t=$("rt").value,p=$("rp2").value.toLowerCase(),r=$("rr").value;
+ return S.log.filter(function(l){
+  if(l.type!=="OUT")return false;
+  var d=new Date(l.t),ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  return(!f||ds>=f)&&(!t||ds<=t)&&(!p||(l.p||"").toLowerCase().indexOf(p)>=0)&&(!r||l.r===r);
+ });
+}
+function repTable(){
+ var rs=repRows(),g=$("rg").value;
+ if(g==="x")return{head:["Time","Patient","Procedure","Product","Lot","Qty","User"],rows:rs.map(function(l){return[new Date(l.t).toLocaleString(),l.p||"",l.r||"",l.name,l.lot||"",l.qty,l.u]})};
+ var m={},lab={p:"Patient",n:"Product",r:"Procedure",u:"User"};
+ rs.forEach(function(l){var k=g==="p"?l.p:g==="n"?l.name:g==="r"?l.r:l.u;k=k||"—";m[k]=m[k]||{q:0,c:0};m[k].q+=l.qty;m[k].c++});
+ return{head:[lab[g],"Items booked out","Scans"],rows:Object.keys(m).sort().map(function(k){return[k,m[k].q,m[k].c]})};
+}
+function renderRep(){
+ var rr=$("rr");if(!rr.options.length)rr.innerHTML='<option value="">All procedures</option>'+Array.from($("rm").options).map(function(o){return"<option>"+esc(o.value)+"</option>"}).join("");
+ var t=repTable();
+ $("rh").innerHTML="<tr>"+t.head.map(function(x){return"<th>"+x+"</th>"}).join("")+"</tr>";
+ $("rb").innerHTML=t.rows.map(function(r){return"<tr>"+r.map(function(c){return"<td>"+esc(c)+"</td>"}).join("")+"</tr>"}).join("")||'<tr><td class="sub">No book-outs match.</td></tr>';
+}
+async function repCsv(){
+ if(!isAdmin())return;
+ var t=repTable(),q=function(s){s=String(s);if(/^[=+\-@]/.test(s))s="'"+s;return'"'+s.replace(/"/g,'""')+'"'};
+ var data=[t.head.map(q).join(",")].concat(t.rows.map(function(r){return r.map(q).join(",")})).join("\n"),dl=null;
+ try{dl=await claude.use("downloads")}catch(e){}
+ if(dl){try{await dl.save({filename:"usage-report.csv",data:data});return}catch(e){if(e&&e.code==="declined")return}}
+ var x=$("rcsv");x.value=data;x.classList.remove("hide");x.select();
+}
+/* ---------- wiring ---------- */
+document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){tab(b.dataset.t)}});
+$("mIn").onclick=function(){setMode("in")};
+$("mOut").onclick=function(){setMode("out")};
+$("bc").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();handleScan()}});
+$("nn").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();saveNew()}});
+$("ns").onclick=saveNew;
+$("srch").oninput=render;$("fu").onchange=render;$("ft").onchange=render;
+$("sb").onclick=function(e){var w=e.target.dataset.wo;if(w&&S.items[w]&&isAdmin()){var it=S.items[w],q=expQ(it);it.qty-=q;it.b=it.b.filter(function(b){return !(b.exp&&b.exp<today())});L("WRITE_OFF",{bc:w,name:it.name,qty:q,d:"Expired stock written off"});save();render();return}var d=e.target.dataset.del;if(d&&S.items[d]&&isAdmin()){L("DEL_PRODUCT",{bc:d,name:S.items[d].name});delete S.items[d];save();render()}};
+$("ub").onclick=usersClick;$("nb").onclick=addUser;
+$("exp").onclick=function(){var t=$("csv");t.value=csvOf();t.classList.remove("hide");t.select()};
+$("lb").onclick=authGo;$("lo").onclick=logout;
+$("rx").onclick=repCsv;["rf","rt","rp2","rr","rg"].forEach(function(i){$(i).addEventListener("input",renderRep);$(i).addEventListener("change",renderRep)});
+$("pt").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();focusBc()}});
+$("cpt").onclick=function(){$("cp").classList.toggle("hide");$("cpm").classList.add("hide")};$("cpb").onclick=changePw;$("ax").onclick=exportAct;
+["lu","lp","lc"].forEach(function(i){$(i).addEventListener("keydown",function(e){if(e.key==="Enter")authGo()})});
+document.addEventListener("keydown",function(e){if(!cur)return;if(e.key==="F1"){e.preventDefault();setMode("in")}if(e.key==="F2"){e.preventDefault();setMode("out")}});
+if(!(window.crypto&&crypto.subtle)){document.body.innerHTML="<p style='padding:20px'>This browser does not support secure password hashing. Please use a current version of Edge, Chrome or Firefox over https.</p>"}
+else{load();showAuth()}
+</script>
+</body>
+</html>
